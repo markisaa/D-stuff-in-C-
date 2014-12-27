@@ -1,0 +1,184 @@
+
+/*
+ * Proof of concept:
+ * 1) There is no GC:
+ *  a) Arbitrary growth will be disallowed. You may not grow an existing one of these.
+ *  b) You can slice/shrink as desired.
+ * 2) Supported operations:
+ *  a) construction via initializer list, iterators, (fill with value?)
+ *  b) subscripting
+ *  c) slicing - both accessing and setting, including a full-range slice
+ *  d) copy constructor/assignment is actually an aliasing operation, rebinding the internal pointers
+ *  e) explicit dup/idup functions
+ *  f) get non-owning raw pointer/array out
+ *  g) length + an overload on a special "instance.length" stand-in type
+ *  h) equality
+ *  j) concatenation of arrays/elements
+ *
+ */
+
+#include <initializer_list>
+#include <algorithm>
+#include <type_traits>
+#include <memory>
+
+//TODO: Evaluate whether viewEnd_ should really just be size_
+
+namespace cppToD {
+  namespace detail {
+    struct DupTag {};
+  }
+  //A stand-in for myType.length
+  struct L$ {};
+
+  template<typename T>
+  struct Array {
+  private:
+    using TMutable = typename std::remove_const<T>::type;
+    using TConst = typename std::add_const<T>::type;
+  public:
+    Array() : viewStart_{reinterpret_cast<TMutable*>(this)},
+              viewEnd_{reinterpret_cast<TMutable*>(this)} {}
+    Array(size_t size_in) {
+      raw_ = std::shared_ptr<TMutable>([&] { return new TMutable[size_in]; }(),
+                                std::default_delete<TMutable[]>{});
+      viewStart_ = raw_.get();
+      viewEnd_ = raw_.get() + size_in;
+    }
+    Array(size_t size_in, T value) : Array(size_in) {
+      setupUninitialized();
+      std::uninitialized_fill(viewStart_, viewEnd_, value);
+    }
+    Array(std::initializer_list<T> values) {
+      setupFromSrc(std::begin(values), std::end(values), values.size());
+    }
+    Array(const Array&) = default;
+    Array(Array&&) = default;
+    Array& operator=(const Array&) = default;
+    Array& operator=(Array&&) = default;
+
+    void swap(Array& rhs) {
+      std::swap(raw_, rhs.raw_);
+      std::swap(viewStart_, rhs.viewStart_);
+      std::swap(viewEnd_, rhs.viewEnd_);
+    }
+
+    using DupType = Array<TMutable>;
+    using IDupType = Array<TConst>;
+    DupType dup() const {
+      return DupType{*this, detail::DupTag{}};
+    }
+    IDupType idup() const {
+      return IDupType{*this, detail::DupTag{}};
+    }
+
+    T& operator[](std::size_t index) {
+      return viewStart_[index];
+    }
+    TConst& operator[](std::size_t index) const {
+      return viewStart_[index];
+    }
+
+    bool empty() const {
+      return !size();
+    }
+    std::size_t size() const {
+      return std::distance(viewStart_, viewEnd_);
+    }
+
+    T* data() {
+      return viewStart_;
+    }
+    TConst* data() const {
+      return viewStart_;
+    }
+
+    Array slice() const {
+      return Array{*this};
+    }
+    Array slice(size_t start, L$) const {
+      return slice(start, size());
+    }
+    Array slice(size_t start, size_t finish) const {
+      auto result = Array{*this};
+      result.sliceEq(start, finish);
+      return result;
+    }
+
+    const Array& sliceEq() const {
+      return *this;
+    }
+    Array& sliceEq() {
+      return *this;
+    }
+    Array& sliceEq(size_t start, L$) {
+      return sliceEq(start, size());
+    }
+    Array& sliceEq(size_t start, size_t finish) {
+      assert(finish >= start);
+      assert(size() >= finish);
+      viewEnd_ = viewStart_ + finish;
+      viewStart_ += start;
+      return *this;
+    }
+
+    void popFront() {
+      sliceEq(1, L${});
+    }
+    void popBack() {
+      sliceEq(0, size() - 1);
+    }
+
+    T front() {
+      return *viewStart_;
+    }
+    TConst front() const {
+      return *viewStart_;
+    }
+
+    T back() {
+      return *(viewEnd_ - 1);
+    }
+    TConst back() const {
+      return *(viewEnd_ - 1);
+    }
+
+  private:
+    friend Array<TMutable>;
+    friend Array<TConst>;
+
+    template<typename SRCT>
+    Array(const Array<SRCT>& src, detail::DupTag) {
+      static_assert(std::is_same<typename std::decay<T>::type,
+                                 typename std::decay<SRCT>::type
+                    >::value, "Basically, constness can change, nothing else");
+      setupFromSrc(src.viewStart_, src.viewEnd_, src.size());
+    }
+
+    template<typename ITR>
+    void setupFromSrc(ITR start, ITR finish, std::size_t size_in) {
+      assert(std::distance(start, finish) == size_in);
+      setupUninitialized(size_in);
+      std::uninitialized_copy(start, finish, viewStart_);
+    }
+
+    void setupUninitialized(size_t size_in) {
+      const auto allocationSize = sizeof(TMutable) * size_in;
+      raw_ = std::shared_ptr<TMutable>([&] {
+        return static_cast<TMutable*>(std::malloc(allocationSize));
+      }(), Array::deleter);
+      viewStart_ = raw_.get();
+      viewEnd_ = raw_.get() + size_in;
+    }
+
+    static void deleter(const void* ptr) {
+      std::free(const_cast<void*>(ptr));
+    }
+
+
+    std::shared_ptr<TMutable> raw_;
+    TMutable* viewStart_;
+    TMutable* viewEnd_;
+  };
+
+}
