@@ -37,8 +37,8 @@ namespace cppToD {
     using TMutable = typename std::remove_const<T>::type;
     using TConst = typename std::add_const<T>::type;
   public:
-    Array() : viewStart_{reinterpret_cast<TMutable*>(this)},
-              viewEnd_{reinterpret_cast<TMutable*>(this)} {}
+    constexpr Array() noexcept : viewStart_{reinterpret_cast<TMutable*>(this)},
+                                 viewEnd_{reinterpret_cast<TMutable*>(this)} {}
     Array(size_t size_in) {
       raw_ = std::shared_ptr<TMutable>([&] { return new TMutable[size_in]; }(),
                                 std::default_delete<TMutable[]>{});
@@ -52,12 +52,12 @@ namespace cppToD {
     Array(std::initializer_list<T> values) {
       setupFromSrc(std::begin(values), std::end(values), values.size());
     }
-    Array(const Array&) = default;
-    Array(Array&&) = default;
-    Array& operator=(const Array&) = default;
-    Array& operator=(Array&&) = default;
+    Array(const Array&) noexcept = default;
+    Array(Array&&) noexcept = default;
+    Array& operator=(const Array&) noexcept = default;
+    Array& operator=(Array&&) noexcept = default;
 
-    void swap(Array& rhs) {
+    void swap(Array& rhs) noexcept {
       std::swap(raw_, rhs.raw_);
       std::swap(viewStart_, rhs.viewStart_);
       std::swap(viewEnd_, rhs.viewEnd_);
@@ -72,24 +72,24 @@ namespace cppToD {
       return IDupType{*this, detail::DupTag{}};
     }
 
-    T& operator[](std::size_t index) {
+    T& operator[](std::size_t index) noexcept {
       return viewStart_[index];
     }
-    TConst& operator[](std::size_t index) const {
+    TConst& operator[](std::size_t index) const noexcept {
       return viewStart_[index];
     }
 
-    bool empty() const {
+    constexpr bool empty() const noexcept {
       return !size();
     }
-    std::size_t size() const {
+    constexpr std::size_t size() const noexcept {
       return std::distance(viewStart_, viewEnd_);
     }
 
-    T* data() {
+    T* data() noexcept {
       return viewStart_;
     }
-    TConst* data() const {
+    constexpr TConst* data() const noexcept {
       return viewStart_;
     }
 
@@ -129,17 +129,17 @@ namespace cppToD {
       sliceEq(0, size() - 1);
     }
 
-    T front() {
+    T front() noexcept {
       return *viewStart_;
     }
-    TConst front() const {
+    constexpr TConst front() const noexcept {
       return *viewStart_;
     }
 
-    T back() {
+    T back() noexcept {
       return *(viewEnd_ - 1);
     }
-    TConst back() const {
+    constexpr TConst back() const noexcept {
       return *(viewEnd_ - 1);
     }
 
