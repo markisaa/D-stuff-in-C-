@@ -54,8 +54,7 @@ namespace cppToD {
     using TMutable = typename std::remove_const<T>::type;
     using TConst = typename std::add_const<T>::type;
   public:
-    constexpr Array() noexcept : viewStart_{reinterpret_cast<TMutable*>(this)},
-                                 viewEnd_{reinterpret_cast<TMutable*>(this)} {}
+    constexpr Array() noexcept : viewStart_{nullptr}, viewEnd_{nullptr} {}
     Array(size_t size_in) {
       raw_ = std::shared_ptr<TMutable>([&] { return new TMutable[size_in]; }(),
                                        std::default_delete<TMutable[]>{});
