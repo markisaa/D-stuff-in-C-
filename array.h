@@ -17,6 +17,8 @@
  *
  */
 
+#pragma once
+
 #include <initializer_list>
 #include <algorithm>
 #include <type_traits>
@@ -27,6 +29,21 @@
 namespace cppToD {
   namespace detail {
     struct DupTag {};
+
+    template<typename ITR>
+    void destroyRangeImpl(ITR start, ITR finish, std::true_type) {
+      using T = typename std::remove_reference<decltype(*start)>::type;
+      std::for_each(start, finish, [] (T& elt) { elt.~T(); });
+    }
+
+    template<typename ITR>
+    void destroyRangeImpl(ITR start, ITR finish, std::false_type) {}
+
+    template<typename ITR>
+    void destroyRange(ITR start, ITR finish) {
+      using TD = typename std::decay<decltype(*start)>::type;
+      destroyRangeImpl(start, finish, typename std::is_class<TD>::type{});
+    }
   }
   //A stand-in for myType.length
   struct L$ {};
@@ -41,11 +58,11 @@ namespace cppToD {
                                  viewEnd_{reinterpret_cast<TMutable*>(this)} {}
     Array(size_t size_in) {
       raw_ = std::shared_ptr<TMutable>([&] { return new TMutable[size_in]; }(),
-                                std::default_delete<TMutable[]>{});
+                                       std::default_delete<TMutable[]>{});
       viewStart_ = raw_.get();
       viewEnd_ = raw_.get() + size_in;
     }
-    Array(size_t size_in, T value) : Array(size_in) {
+    Array(size_t size_in, TConst& value) : Array(size_in) {
       setupUninitialized();
       std::uninitialized_fill(viewStart_, viewEnd_, value);
     }
@@ -164,17 +181,24 @@ namespace cppToD {
 
     void setupUninitialized(size_t size_in) {
       const auto allocationSize = sizeof(TMutable) * size_in;
+      auto deleterCourrier = [size_in] (const T* ptr) {
+        Array::deleter(size_in, ptr);
+      };
+
       raw_ = std::shared_ptr<TMutable>([&] {
         return static_cast<TMutable*>(std::malloc(allocationSize));
-      }(), Array::deleter);
+      }(), deleterCourrier);
       viewStart_ = raw_.get();
       viewEnd_ = raw_.get() + size_in;
     }
 
-    static void deleter(const void* ptr) {
-      std::free(const_cast<void*>(ptr));
+    static void deleter(size_t numElts, TConst* ptr) {
+      //Safe because the underlying storage is always mutable:
+      auto mutPtr = const_cast<TMutable*>(ptr);
+      auto mutEnd = mutPtr + numElts;
+      detail::destroyRange(mutPtr, mutEnd);
+      std::free(mutPtr);
     }
-
 
     std::shared_ptr<TMutable> raw_;
     TMutable* viewStart_;

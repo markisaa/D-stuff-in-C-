@@ -1,5 +1,6 @@
 
 #include <iostream>
+#include <memory>
 #include <cassert>
 
 #include "array.h"
@@ -8,6 +9,8 @@
 
 using std::cout;
 using std::endl;
+using std::shared_ptr;
+using std::make_shared;
 using std::is_const;
 using std::remove_reference;
 using std::remove_pointer;
@@ -23,6 +26,8 @@ int main() {
   return 0;
 }
 
+//TODO: Test void array - consider adding conversions
+
 MEX_UNIT_TEST
   //Basics
   auto arr = Array<int>{1, 2, 3, 4, 5};
@@ -35,6 +40,15 @@ MEX_UNIT_TEST
   assert(*arr.data() == -1);
   *arr.data() = -5;
   assert(*arr.data() == -5);
+MEX_END_UNIT_TEST
+
+MEX_UNIT_TEST
+  //Destructor check
+  auto refCounted = make_shared<int>(5);
+  {
+    auto arr = Array<shared_ptr<int>>{ refCounted, refCounted };
+  }
+  assert(refCounted.unique());
 MEX_END_UNIT_TEST
 
 MEX_UNIT_TEST
