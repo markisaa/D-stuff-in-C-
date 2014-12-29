@@ -22,6 +22,7 @@
 #include <initializer_list>
 #include <algorithm>
 #include <type_traits>
+#include <new>
 #include <memory>
 
 //TODO: Evaluate whether viewEnd_ should really just be size_
@@ -184,7 +185,7 @@ namespace cppToD {
       };
 
       raw_ = std::shared_ptr<TMutable>([&] {
-        return static_cast<TMutable*>(std::malloc(allocationSize));
+        return static_cast<TMutable*>(::operator new(allocationSize));
       }(), deleterCourrier);
       viewStart_ = raw_.get();
       viewEnd_ = raw_.get() + size_in;
@@ -195,7 +196,7 @@ namespace cppToD {
       auto mutPtr = const_cast<TMutable*>(ptr);
       auto mutEnd = mutPtr + numElts;
       detail::destroyRange(mutPtr, mutEnd);
-      std::free(mutPtr);
+      ::operator delete(static_cast<void*>(mutPtr));
     }
 
     std::shared_ptr<TMutable> raw_;
