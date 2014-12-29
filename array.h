@@ -56,7 +56,7 @@ namespace cppToD {
   public:
     constexpr Array() noexcept : viewStart_{nullptr}, viewEnd_{nullptr} {}
     Array(size_t size_in) {
-      raw_ = std::shared_ptr<TMutable>([&] { return new TMutable[size_in]; }(),
+      raw_ = std::shared_ptr<TMutable>(new TMutable[size_in],
                                        std::default_delete<TMutable[]>{});
       viewStart_ = raw_.get();
       viewEnd_ = raw_.get() + size_in;
