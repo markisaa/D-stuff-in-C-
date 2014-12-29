@@ -122,16 +122,16 @@ namespace cppToD {
       return result;
     }
 
-    const Array& sliceEq() const {
+    const Array& sliceEq() const noexcept {
       return *this;
     }
-    Array& sliceEq() {
+    Array& sliceEq() noexcept {
       return *this;
     }
-    Array& sliceEq(std::size_t start, L$) {
+    Array& sliceEq(std::size_t start, L$) noexcept {
       return sliceEq(start, size());
     }
-    Array& sliceEq(std::size_t start, std::size_t finish) {
+    Array& sliceEq(std::size_t start, std::size_t finish) noexcept {
       assert(finish >= start);
       assert(size() >= finish);
       viewEnd_ = viewStart_ + finish;
@@ -139,10 +139,10 @@ namespace cppToD {
       return *this;
     }
 
-    void popFront() {
+    void popFront() noexcept {
       sliceEq(1, L${});
     }
-    void popBack() {
+    void popBack() noexcept {
       sliceEq(0, size() - 1);
     }
 
