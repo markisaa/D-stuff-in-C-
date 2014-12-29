@@ -56,13 +56,13 @@ namespace cppToD {
     using TConst = typename std::add_const<T>::type;
   public:
     constexpr Array() noexcept : viewStart_{nullptr}, viewEnd_{nullptr} {}
-    Array(size_t size_in) {
+    Array(std::size_t size_in) {
       raw_ = std::shared_ptr<TMutable>(new TMutable[size_in],
                                        std::default_delete<TMutable[]>{});
       viewStart_ = raw_.get();
       viewEnd_ = raw_.get() + size_in;
     }
-    Array(size_t size_in, TConst& value) : Array(size_in) {
+    Array(std::size_t size_in, TConst& value) : Array(size_in) {
       setupUninitialized();
       std::uninitialized_fill(viewStart_, viewEnd_, value);
     }
@@ -113,10 +113,10 @@ namespace cppToD {
     Array slice() const {
       return Array{*this};
     }
-    Array slice(size_t start, L$) const {
+    Array slice(std::size_t start, L$) const {
       return slice(start, size());
     }
-    Array slice(size_t start, size_t finish) const {
+    Array slice(std::size_t start, std::size_t finish) const {
       auto result = Array{*this};
       result.sliceEq(start, finish);
       return result;
@@ -128,10 +128,10 @@ namespace cppToD {
     Array& sliceEq() {
       return *this;
     }
-    Array& sliceEq(size_t start, L$) {
+    Array& sliceEq(std::size_t start, L$) {
       return sliceEq(start, size());
     }
-    Array& sliceEq(size_t start, size_t finish) {
+    Array& sliceEq(std::size_t start, std::size_t finish) {
       assert(finish >= start);
       assert(size() >= finish);
       viewEnd_ = viewStart_ + finish;
@@ -178,7 +178,7 @@ namespace cppToD {
       std::uninitialized_copy(start, finish, viewStart_);
     }
 
-    void setupUninitialized(size_t size_in) {
+    void setupUninitialized(std::size_t size_in) {
       const auto allocationSize = sizeof(TMutable) * size_in;
       auto deleterCourrier = [size_in] (const T* ptr) {
         Array::deleter(size_in, ptr);
@@ -191,7 +191,7 @@ namespace cppToD {
       viewEnd_ = raw_.get() + size_in;
     }
 
-    static void deleter(size_t numElts, TConst* ptr) {
+    static void deleter(std::size_t numElts, TConst* ptr) {
       //Safe because the underlying storage is always mutable:
       auto mutPtr = const_cast<TMutable*>(ptr);
       auto mutEnd = mutPtr + numElts;
