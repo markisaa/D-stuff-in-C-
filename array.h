@@ -165,9 +165,8 @@ namespace cppToD {
 
     template<typename SRCT>
     Array(const Array<SRCT>& src, detail::DupTag) {
-      static_assert(std::is_same<typename std::decay<T>::type,
-                                 typename std::decay<SRCT>::type
-                    >::value, "Basically, constness can change, nothing else");
+      static_assert(std::is_same<TConst, typename Array<SRCT>::TConst>::value,
+                    "Basically, constness can change, nothing else");
       setupFromSrc(src.viewStart_, src.viewEnd_, src.size());
     }
 
