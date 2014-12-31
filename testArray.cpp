@@ -168,6 +168,23 @@ MEX_UNIT_TEST
   assert(arr.empty());
 MEX_END_UNIT_TEST
 
+MEX_UNIT_TEST
+  //Concatenation
+  auto arr = Array<int>{1, 2, 3};
+  auto with4 = arr.concat(4);
+  assert(with4.size() == 4);
+  assert(with4[3] == 4);
+
+  auto arrayWiseConcat = arr.concat(with4);
+  assert(arrayWiseConcat.size() == 7);
+  assert(arrayWiseConcat[0] == 1);
+  assert(arrayWiseConcat[1] == 2);
+  assert(arrayWiseConcat[2] == 3);
+  assert(arrayWiseConcat[3] == 1);
+  assert(arrayWiseConcat[4] == 2);
+  assert(arrayWiseConcat[5] == 3);
+  assert(arrayWiseConcat[6] == 4);
+MEX_END_UNIT_TEST
 
 /*
  * Proof of concept:
@@ -183,7 +200,7 @@ MEX_END_UNIT_TEST
  *  * f) get non-owning raw pointer/array out
  *  * g) length + an overload on a special "instance.length" stand-in type
  *  h) equality
- *  j) concatenation of arrays/elements
+ *  * j) concatenation of arrays/elements
  *  * k) Range interface
  *
  */

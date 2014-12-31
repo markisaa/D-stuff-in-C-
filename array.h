@@ -62,8 +62,8 @@ namespace cppToD {
       viewStart_ = raw_.get();
       viewEnd_ = raw_.get() + size_in;
     }
-    Array(std::size_t size_in, TConst& value) : Array(size_in) {
-      setupUninitialized();
+    Array(std::size_t size_in, TConst& value)
+      : Array{size_in, UninitializedConstructionTag{}} {
       std::uninitialized_fill(viewStart_, viewEnd_, value);
     }
     Array(std::initializer_list<T> values) {
@@ -160,22 +160,62 @@ namespace cppToD {
       return *(viewEnd_ - 1);
     }
 
+    Array concat(TMutable&& newElt) const {
+      auto resultSize = size() + 1;
+      auto result = Array{resultSize, UninitializedConstructionTag{}};
+      result.initializeFromSrc(viewStart_, viewEnd_);
+      auto lastEltPtr = result.viewStart_ + size();
+      new(lastEltPtr) TMutable{std::forward<TMutable>(newElt)};
+      return result;
+    }
+
+    template<typename ELT>
+    Array concat(const Array<ELT>& rhs) {
+      ensureSameStorageType<ELT>();
+      auto resultSize = size() + rhs.size();
+      auto result = Array{resultSize, UninitializedConstructionTag{}};
+      result.initializeFromSrc(viewStart_, viewEnd_);
+      result.initializeFromSrc(rhs.viewStart_, rhs.viewEnd_,
+                               result.viewStart_ + size());
+      return result;
+    }
+
   private:
     friend Array<TMutable>;
     friend Array<TConst>;
 
     template<typename SRCT>
-    Array(const Array<SRCT>& src, detail::DupTag) {
+    void ensureSameStorageType() {
       static_assert(std::is_same<TConst, typename Array<SRCT>::TConst>::value,
                     "Basically, constness can change, nothing else");
+    }
+
+    template<typename SRCT>
+    Array(const Array<SRCT>& src, detail::DupTag) {
+      ensureSameStorageType<SRCT>();
       setupFromSrc(src.viewStart_, src.viewEnd_, src.size());
+    }
+
+    struct UninitializedConstructionTag {};
+    Array(std::size_t size_in, UninitializedConstructionTag) {
+      setupUninitialized(size_in);
     }
 
     template<typename ITR>
     void setupFromSrc(ITR start, ITR finish, std::size_t size_in) {
       assert(std::distance(start, finish) == size_in);
       setupUninitialized(size_in);
-      std::uninitialized_copy(start, finish, viewStart_);
+      initializeFromSrc(start, finish);
+    }
+
+    template<typename ITR>
+    void initializeFromSrc(ITR start, ITR finish) {
+      initializeFromSrc(start, finish, viewStart_);
+    }
+
+    template<typename ITR>
+    void initializeFromSrc(ITR start, ITR finish, TMutable* startingAt) {
+      std::uninitialized_copy(start, finish, startingAt);
     }
 
     void setupUninitialized(std::size_t size_in) {
